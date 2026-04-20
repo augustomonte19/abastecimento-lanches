@@ -1,23 +1,23 @@
-import json
-import urllib.request
+import os
+import re
 
-# Lê o dados.json do SharePoint
-url = "https://capriccheadm.sharepoint.com/sites/AbastecimentoLanches/Documentos%20Compartilhados/dados.json"
+nome = os.environ.get("NOME", "")
+lanches_raw = os.environ.get("LANCHES", "")
+observacao = os.environ.get("OBSERVACAO", "").strip()
 
-try:
-    with urllib.request.urlopen(url) as response:
-        dados = json.loads(response.read().decode())
-        ultimo = dados[-1] if dados else {}
-except:
-    ultimo = {}
+# Limpa os lanches removendo colchetes e aspas
+lanches_list = re.findall(r'"([^"]+)"', lanches_raw)
+if not lanches_list:
+    lanches_list = [lanches_raw.strip("[]\" ")]
+lanches_html = "<br>".join(f"🥪 {l}" for l in lanches_list if l)
 
-# Pega os valores
-nome = ultimo.get("Quem_Abasteceu", "Aguardando...")
-lanches = ultimo.get("Lanches", "Aguardando...")
-obs = ultimo.get("Obs", "Aguardando...")
-horario = ultimo.get("Data_Hora_Envio", "Aguardando...")
+# Observação só aparece se preenchida
+obs_html = f"""
+    <div class="info">
+      <div class="label">Observação</div>
+      <div class="valor">{observacao}</div>
+    </div>""" if observacao else ""
 
-# Atualiza o index.html
 html = f"""<!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -30,7 +30,7 @@ html = f"""<!DOCTYPE html>
     h1 {{ color: #6B2D8B; font-size: 24px; }}
     .info {{ margin: 15px 0; }}
     .label {{ color: #888; font-size: 14px; }}
-    .valor {{ font-weight: bold; color: #333; font-size: 20px; }}
+    .valor {{ font-weight: bold; color: #333; font-size: 20px; line-height: 1.6; }}
   </style>
 </head>
 <body>
@@ -42,21 +42,22 @@ html = f"""<!DOCTYPE html>
     </div>
     <div class="info">
       <div class="label">Lanches</div>
-      <div class="valor">{lanches}</div>
+      <div class="valor">{lanches_html}</div>
     </div>
-    <div class="info">
-      <div class="label">Observação</div>
-      <div class="valor">{obs}</div>
-    </div>
+    {obs_html}
     <div class="info">
       <div class="label">Horário</div>
-      <div class="valor">{horario}</div>
+      <div class="valor">HORARIO_PLACEHOLDER</div>
     </div>
   </div>
 </body>
 </html>"""
 
+from datetime import datetime
+horario = datetime.now().strftime("%d/%m/%Y %H:%M")
+html = html.replace("HORARIO_PLACEHOLDER", horario)
+
 with open("index.html", "w", encoding="utf-8") as f:
     f.write(html)
 
-print("index.html atualizado com sucesso!")
+print("index.html atualizado!")
